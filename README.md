@@ -1,1 +1,1 @@
-# bank-prediction-model-ml
+# bank-prediction-model-ml-coursework
