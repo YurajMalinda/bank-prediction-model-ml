@@ -51,7 +51,7 @@ jobs:
           ECS_CLUSTER: BankPredictionCluster
         run: |
           # Download current task definition
-          aws ecs describe-task-definition --task-definition Bank-Prediction-Task-Definition --query taskDefinition > task-definition.json
+          aws ecs describe-task-definition --task-definition bank-prediction-task-definition --query taskDefinition > task-definition.json
           
           # Update image in task definition
           jq '.containerDefinitions[0].image = "'$ECR_REGISTRY'/'$ECR_REPOSITORY':'$IMAGE_TAG'"' task-definition.json > temp.json
