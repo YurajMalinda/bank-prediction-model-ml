@@ -40,6 +40,7 @@ jobs:
         run: |
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "Pushed image: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
 
       # Update ECS task definition and deploy
       - name: Deploy to ECS
@@ -49,20 +50,44 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
           ECS_SERVICE: bank-prediction-model-service
           ECS_CLUSTER: BankPredictionCluster
+          TASK_DEFINITION_FAMILY: bank-prediction-task-definition
         run: |
           # Download current task definition
-          aws ecs describe-task-definition --task-definition bank-prediction-task-definition --query taskDefinition > task-definition.json
+          aws ecs describe-task-definition --task-definition $TASK_DEFINITION_FAMILY --query taskDefinition > task-definition.json
           
           # Update image in task definition
           jq '.containerDefinitions[0].image = "'$ECR_REGISTRY'/'$ECR_REPOSITORY':'$IMAGE_TAG'"' task-definition.json > temp.json
           mv temp.json task-definition.json
           
-          # Remove readOnlyProperties and other unnecessary attributes
+          # Remove read-only properties and other unnecessary attributes
           jq 'del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .registeredAt, .registeredBy, .compatibilities)' task-definition.json > temp.json
           mv temp.json task-definition.json
           
-          # Register new task definition
-          aws ecs register-task-definition --cli-input-json file://task-definition.json
+          # Register new task definition and capture the revision
+          TASK_DEF_ARN=$(aws ecs register-task-definition --cli-input-json file://task-definition.json --query 'taskDefinition.taskDefinitionArn' --output text)
+          if [ -z "$TASK_DEF_ARN" ]; then
+            echo "Failed to register task definition"
+            exit 1
+          fi
+          TASK_REVISION=$(echo $TASK_DEF_ARN | grep -o ':[0-9]\+$' | cut -c 2-)
+          if [ -z "$TASK_REVISION" ]; then
+            echo "Failed to extract task definition revision"
+            exit 1
+          fi
+          echo "New task definition revision: $TASK_REVISION"
           
-          # Update ECS service with new task definition
-          aws ecs update-service --cluster $ECS_CLUSTER --service $ECS_SERVICE --force-new-deployment
+          # Update ECS service with the new task definition revision
+          aws ecs update-service --cluster $ECS_CLUSTER --service $ECS_SERVICE --task-definition $TASK_DEFINITION_FAMILY:$TASK_REVISION --force-new-deployment
+          if [ $? -ne 0 ]; then
+            echo "Failed to update ECS service"
+            exit 1
+          fi
+          echo "Updated ECS service with task definition $TASK_DEFINITION_FAMILY:$TASK_REVISION"
+          
+          # Wait for service stability
+          aws ecs wait services-stable --cluster $ECS_CLUSTER --services $ECS_SERVICE
+          if [ $? -ne 0 ]; then
+            echo "Service did not stabilize"
+            exit 1
+          fi
+          echo "Service is stable with new task definition"
