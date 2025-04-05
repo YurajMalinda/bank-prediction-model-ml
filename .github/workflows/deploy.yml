@@ -3,22 +3,19 @@ name: Deploy to AWS ECS
 on:
   push:
     branches:
-      - main  # Triggers on push to main branch
+      - main
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout the repository code
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Set up Docker Buildx for building Docker images
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      # Configure AWS credentials
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
@@ -26,23 +23,20 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-south-1
 
-      # Login to Amazon ECR
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
-      # Build, tag, and push Docker image to ECR
       - name: Build, tag, and push image to ECR
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: bank-prediction-model
-          IMAGE_TAG: ${{ github.sha }}  # Tags image with commit SHA
+          IMAGE_TAG: ${{ github.sha }}
         run: |
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           echo "Pushed image: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
 
-      # Update ECS task definition and deploy
       - name: Deploy to ECS
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -52,18 +46,11 @@ jobs:
           ECS_CLUSTER: BankPredictionCluster
           TASK_DEFINITION_FAMILY: bank-prediction-task-definition
         run: |
-          # Download current task definition
           aws ecs describe-task-definition --task-definition $TASK_DEFINITION_FAMILY --query taskDefinition > task-definition.json
-          
-          # Update image in task definition
           jq '.containerDefinitions[0].image = "'$ECR_REGISTRY'/'$ECR_REPOSITORY':'$IMAGE_TAG'"' task-definition.json > temp.json
           mv temp.json task-definition.json
-          
-          # Remove read-only properties and other unnecessary attributes
           jq 'del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .registeredAt, .registeredBy, .compatibilities)' task-definition.json > temp.json
           mv temp.json task-definition.json
-          
-          # Register new task definition and capture the revision
           TASK_DEF_ARN=$(aws ecs register-task-definition --cli-input-json file://task-definition.json --query 'taskDefinition.taskDefinitionArn' --output text)
           if [ -z "$TASK_DEF_ARN" ]; then
             echo "Failed to register task definition"
@@ -75,19 +62,16 @@ jobs:
             exit 1
           fi
           echo "New task definition revision: $TASK_REVISION"
-          
-          # Update ECS service with the new task definition revision
           aws ecs update-service --cluster $ECS_CLUSTER --service $ECS_SERVICE --task-definition $TASK_DEFINITION_FAMILY:$TASK_REVISION --force-new-deployment
           if [ $? -ne 0 ]; then
             echo "Failed to update ECS service"
             exit 1
           fi
           echo "Updated ECS service with task definition $TASK_DEFINITION_FAMILY:$TASK_REVISION"
-          
-          # Wait for service stability
-          aws ecs wait services-stable --cluster $ECS_CLUSTER --services $ECS_SERVICE
+          aws ecs wait services-stable --cluster $ECS_CLUSTER --services $ECS_SERVICE --timeout 300
           if [ $? -ne 0 ]; then
-            echo "Service did not stabilize"
+            echo "Service did not stabilize within 5 minutes"
+            aws ecs describe-services --cluster $ECS_CLUSTER --services $ECS_SERVICE --query 'services[0].events[0:5]' --output json
             exit 1
           fi
           echo "Service is stable with new task definition"
