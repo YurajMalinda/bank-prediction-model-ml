@@ -49,13 +49,16 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
           ECS_SERVICE: bank-prediction-model-service
           ECS_CLUSTER: BankPredictionCluster
-          ECS_TASK_DEFINITION: task-definition.json  # Temporary file for task definition
         run: |
           # Download current task definition
           aws ecs describe-task-definition --task-definition Bank-Prediction-Task-Definition --query taskDefinition > task-definition.json
           
           # Update image in task definition
-          jq '.containerDefinitions[0].image = "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"' task-definition.json > temp.json
+          jq '.containerDefinitions[0].image = "'$ECR_REGISTRY'/'$ECR_REPOSITORY':'$IMAGE_TAG'"' task-definition.json > temp.json
+          mv temp.json task-definition.json
+          
+          # Remove readOnlyProperties and other unnecessary attributes
+          jq 'del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .registeredAt, .registeredBy, .compatibilities)' task-definition.json > temp.json
           mv temp.json task-definition.json
           
           # Register new task definition
