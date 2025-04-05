@@ -1,0 +1,65 @@
+name: Deploy to AWS ECS
+
+on:
+  push:
+    branches:
+      - main  # Triggers on push to main branch
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout the repository code
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Set up Docker Buildx for building Docker images
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      # Configure AWS credentials
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-south-1
+
+      # Login to Amazon ECR
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      # Build, tag, and push Docker image to ECR
+      - name: Build, tag, and push image to ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: bank-prediction-model
+          IMAGE_TAG: ${{ github.sha }}  # Tags image with commit SHA
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+      # Update ECS task definition and deploy
+      - name: Deploy to ECS
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: bank-prediction-model
+          IMAGE_TAG: ${{ github.sha }}
+          ECS_SERVICE: bank-prediction-model-service
+          ECS_CLUSTER: BankPredictionCluster
+          ECS_TASK_DEFINITION: task-definition.json  # Temporary file for task definition
+        run: |
+          # Download current task definition
+          aws ecs describe-task-definition --task-definition my-task-family --query taskDefinition > task-definition.json
+          
+          # Update image in task definition
+          jq '.containerDefinitions[0].image = "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"' task-definition.json > temp.json
+          mv temp.json task-definition.json
+          
+          # Register new task definition
+          aws ecs register-task-definition --cli-input-json file://task-definition.json
+          
+          # Update ECS service with new task definition
+          aws ecs update-service --cluster $ECS_CLUSTER --service $ECS_SERVICE --force-new-deployment
