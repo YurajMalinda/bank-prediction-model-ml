@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bank Subscription Prediction</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .loader {
+            border: 3px solid #4B5EAA;
+            border-top: 3px solid #A5B4FC;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        select {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%239CA3AF' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1em;
+        }
+        .input-error {
+            border-color: #EF4444;
+        }
+        .input-valid {
+            border-color: #10B981;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-lg bg-gray-800 rounded-xl shadow-2xl p-6">
+        <h1 class="text-2xl font-bold text-indigo-300 text-center mb-6">Bank Subscription Prediction</h1>
+        
+        <form id="predictionForm" class="space-y-4" aria-label="Prediction Form">
+            <div>
+                <label for="age" class="block text-white text-xs mb-1">Age</label>
+                <div class="relative">
+                    <i class="fas fa-user absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-500 text-xs"></i>
+                    <input type="number" id="age" name="age" required min="18" max="100" 
+                           class="w-full pl-8 pr-2.5 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all" 
+                           aria-label="Age">
+                    <span class="absolute right-2.5 top-1/2 transform -translate-y-1/2 text-red-400 text-xs hidden" id="age-error">18-100</span>
+                </div>
+            </div>
+
+            <div>
+                <label for="job" class="block text-white text-xs mb-1">Job</label>
+                <div class="relative">
+                    <i class="fas fa-briefcase absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-500 text-xs"></i>
+                    <select id="job" name="job" required 
+                            class="w-full pl-8 pr-8 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all appearance-none" 
+                            aria-label="Job">
+                        <option value="" disabled selected>Select Job</option>
+                        <option value="admin.">Admin</option>
+                        <option value="blue-collar">Blue-collar</option>
+                        <option value="entrepreneur">Entrepreneur</option>
+                        <option value="housemaid">Housemaid</option>
+                        <option value="management">Management</option>
+                        <option value="retired">Retired</option>
+                        <option value="self-employed">Self-employed</option>
+                        <option value="services">Services</option>
+                        <option value="student">Student</option>
+                        <option value="technician">Technician</option>
+                        <option value="unemployed">Unemployed</option>
+                        <option value="unknown">Unknown</option>
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label for="marital" class="block text-white text-xs mb-1">Marital Status</label>
+                <div class="relative">
+                    <i class="fas fa-ring absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-500 text-xs"></i>
+                    <select id="marital" name="marital" required 
+                            class="w-full pl-8 pr-8 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all appearance-none" 
+                            aria-label="Marital Status">
+                        <option value="" disabled selected>Select Marital Status</option>
+                        <option value="divorced">Divorced</option>
+                        <option value="married">Married</option>
+                        <option value="single">Single</option>
+                        <option value="unknown">Unknown</option>
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label for="education" class="block text-white text-xs mb-1">Education</label>
+                <div class="relative">
+                    <i class="fas fa-graduation-cap absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-500 text-xs"></i>
+                    <select id="education" name="education" required 
+                            class="w-full pl-8 pr-8 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all appearance-none" 
+                            aria-label="Education">
+                        <option value="" disabled selected>Select Education</option>
+                        <option value="basic.4y">Basic (4 years)</option>
+                        <option value="basic.6y">Basic (6 years)</option>
+                        <option value="basic.9y">Basic (9 years)</option>
+                        <option value="high.school">High School</option>
+                        <option value="illiterate">Illiterate</option>
+                        <option value="professional.course">Professional Course</option>
+                        <option value="university.degree">University Degree</option>
+                        <option value="unknown">Unknown</option>
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label for="housing" class="block text-white text-xs mb-1">Housing Loan</label>
+                <div class="relative">
+                    <i class="fas fa-home absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-500 text-xs"></i>
+                    <select id="housing" name="housing" required 
+                            class="w-full pl-8 pr-8 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all appearance-none" 
+                            aria-label="Housing Loan">
+                        <option value="" disabled selected>Select Housing Loan</option>
+                        <option value="no">No</option>
+                        <option value="yes">Yes</option>
+                        <option value="unknown">Unknown</option>
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label for="loan" class="block text-white text-xs mb-1">Personal Loan</label>
+                <div class="relative">
+                    <i class="fas fa-money-bill absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-500 text-xs"></i>
+                    <select id="loan" name="loan" required 
+                            class="w-full pl-8 pr-8 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all appearance-none" 
+                            aria-label="Personal Loan">
+                        <option value="" disabled selected>Select Personal Loan</option>
+                        <option value="no">No</option>
+                        <option value="yes">Yes</option>
+                        <option value="unknown">Unknown</option>
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label for="campaign" class="block text-white text-xs mb-1">Campaign Contacts</label>
+                <div class="relative">
+                    <i class="fas fa-phone absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-500 text-xs"></i>
+                    <input type="number" id="campaign" name="campaign" required min="1" 
+                           class="w-full pl-8 pr-2.5 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all" 
+                           aria-label="Campaign Contacts">
+                    <span class="absolute right-2.5 top-1/2 transform -translate-y-1/2 text-red-400 text-xs hidden" id="campaign-error">1+</span>
+                </div>
+            </div>
+
+            <button type="button" id="predictBtn" 
+                    class="w-full py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-200 flex items-center justify-center disabled:bg-gray-600 disabled:cursor-not-allowed group relative" 
+                    disabled 
+                    aria-label="Predict Subscription">
+                <i class="fas fa-brain mr-2 text-xs"></i>Predict
+                <span class="absolute bottom-full mb-2 hidden group-hover:block bg-gray-700 text-white text-xs rounded py-1 px-2">Fill all fields to predict</span>
+            </button>
+        </form>
+
+        <div id="result" class="mt-4 text-center text-lg transition-all duration-300"></div>
+        <div id="loader" class="mt-4 text-center text-indigo-400 hidden">
+            <span class="loader"></span>Loading...
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById("predictionForm");
+        const predictBtn = document.getElementById("predictBtn");
+        const resultDiv = document.getElementById("result");
+        const loader = document.getElementById("loader");
+
+        function validateForm() {
+            const age = document.getElementById("age");
+            const campaign = document.getElementById("campaign");
+            const selects = form.querySelectorAll("select");
+            let isValid = true;
+
+            if (age.value < 18 || age.value > 100) {
+                age.classList.add("input-error");
+                age.classList.remove("input-valid");
+                document.getElementById("age-error").classList.remove("hidden");
+                isValid = false;
+            } else {
+                age.classList.remove("input-error");
+                age.classList.add("input-valid");
+                document.getElementById("age-error").classList.add("hidden");
+            }
+
+            if (campaign.value < 1) {
+                campaign.classList.add("input-error");
+                campaign.classList.remove("input-valid");
+                document.getElementById("campaign-error").classList.remove("hidden");
+                isValid = false;
+            } else {
+                campaign.classList.remove("input-error");
+                campaign.classList.add("input-valid");
+                document.getElementById("campaign-error").classList.add("hidden");
+            }
+
+            selects.forEach(select => {
+                if (!select.value) {
+                    select.classList.add("input-error");
+                    select.classList.remove("input-valid");
+                    isValid = false;
+                } else {
+                    select.classList.remove("input-error");
+                    select.classList.add("input-valid");
+                }
+            });
+
+            predictBtn.disabled = !isValid;
+            return isValid;
+        }
+
+        form.addEventListener("input", validateForm);
+        form.addEventListener("change", validateForm);
+
+        predictBtn.addEventListener("click", function() {
+            if (!validateForm()) return;
+
+            const formData = {
+                age: document.getElementById("age").value,
+                job: document.getElementById("job").value,
+                marital: document.getElementById("marital").value,
+                education: document.getElementById("education").value,
+                housing: document.getElementById("housing").value,
+                loan: document.getElementById("loan").value,
+                campaign: document.getElementById("campaign").value,
+            };
+
+            loader.classList.remove("hidden");
+            resultDiv.classList.remove("text-indigo-200", "text-red-400", "text-green-400");
+            resultDiv.innerHTML = "";
+
+            fetch("/predict", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(formData),
+            })
+            .then(response => response.json())
+            .then(data => {
+                loader.classList.add("hidden");
+                if (data.error) {
+                    resultDiv.classList.add("text-red-400");
+                    resultDiv.innerHTML = `Error: ${data.error} <button class="underline ml-2" onclick="predictBtn.click()">Retry</button>`;
+                } else {
+                    resultDiv.classList.add(data.prediction === "yes" ? "text-green-400" : "text-indigo-200");
+                    resultDiv.innerHTML = `Prediction: ${data.prediction}`;
+                }
+            })
+            .catch(error => {
+                loader.classList.add("hidden");
+                resultDiv.classList.add("text-red-400");
+                resultDiv.innerHTML = `Error: ${error} <button class="underline ml-2" onclick="predictBtn.click()">Retry</button>`;
+            });
+        });
+    </script>
+</body>
+</html>
