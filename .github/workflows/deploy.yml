@@ -3,19 +3,22 @@ name: Deploy to AWS ECS
 on:
   push:
     branches:
-      - main
+      - main  # Triggers on push to main branch
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
+      # Checkout the repository code
       - name: Checkout code
         uses: actions/checkout@v3
 
+      # Set up Docker Buildx for building Docker images
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
+      # Configure AWS credentials
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
@@ -23,20 +26,22 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-south-1
 
+      # Login to Amazon ECR
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
+      # Build, tag, and push Docker image to ECR
       - name: Build, tag, and push image to ECR
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: bank-prediction-model
-          IMAGE_TAG: ${{ github.sha }}
+          IMAGE_TAG: ${{ github.sha }}  # Tags image with commit SHA
         run: |
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          echo "Pushed image: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
 
+      # Update ECS task definition and deploy
       - name: Deploy to ECS
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -52,15 +57,12 @@ jobs:
           jq '.containerDefinitions[0].image = "'$ECR_REGISTRY'/'$ECR_REPOSITORY':'$IMAGE_TAG'"' task-definition.json > temp.json
           mv temp.json task-definition.json
           
-          # Remove read-only properties
+          # Remove readOnlyProperties and other unnecessary attributes
           jq 'del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .registeredAt, .registeredBy, .compatibilities)' task-definition.json > temp.json
           mv temp.json task-definition.json
           
           # Register new task definition
           aws ecs register-task-definition --cli-input-json file://task-definition.json
           
-          # Update ECS service
+          # Update ECS service with new task definition
           aws ecs update-service --cluster $ECS_CLUSTER --service $ECS_SERVICE --force-new-deployment
-          
-          # Wait for service stability (optional, helps with debugging)
-          aws ecs wait services-stable --cluster $ECS_CLUSTER --services $ECS_SERVICE
